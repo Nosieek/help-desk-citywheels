@@ -4,27 +4,28 @@ from pathlib import Path
 DATA_PATH = Path(__file__).parent.parent.parent / "data" / "bookings.json"
 
 
-def load_bookings() -> list[dict]:
+class BookingDataUnavailable(Exception):
+    """The bookings file is missing or corrupted."""
+
+
+class BookingNotFound(Exception):
+    """No booking exists with the given ID."""
+
+
+def load_bookings() -> list:
     try:
         with open(DATA_PATH, encoding="utf-8") as f:
             return json.load(f)
-    except json.JSONDecodeError:
-        return []
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        raise BookingDataUnavailable(
+            "Booking data is temporarily unavailable, please try again later"
+        ) from e
 
 
 def get_booking(booking_id: str) -> dict:
-    """
-    Finds a booking by its ID
-
-    Returns booking details if found, otherwise an error message
-    """
-    try:
-        bookings = load_bookings()
-    except FileNotFoundError:
-        return {"error": "Bookings data unavailable", "booking_id": booking_id}
-
-    for booking in bookings:
+    """Find a booking by its ID (case-insensitive)."""
+    for booking in load_bookings():
         if booking["id"].upper() == booking_id.upper():
             return booking
 
-    return {"error": "Booking not found", "booking_id": booking_id}
+    raise BookingNotFound(f"Booking {booking_id} not found")
