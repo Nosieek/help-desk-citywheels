@@ -1,7 +1,7 @@
 """
 Run the agent on every question in questions.json and check the answers.
 
-Usage (from the repository root, with ANTHROPIC_API_KEY set):
+Usage (after `pip install -e .`, with ANTHROPIC_API_KEY set):
 
     python eval/run_eval.py
 
@@ -17,11 +17,8 @@ Check fields per question (all optional):
 """
 
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from agent.config import MODEL
 from agent.loop import run_agent
