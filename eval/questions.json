@@ -49,6 +49,13 @@
     "answer_contains": ["186"]
   },
   {
+    "id": "booking-short-id",
+    "question": "Can you check booking 1001?",
+    "note": "short ID form: code normalizes 1001 -> CW-1001 instead of asking the customer to confirm",
+    "expected_tools": ["get_booking"],
+    "answer_contains": ["CW-1001", "confirmed"]
+  },
+  {
     "id": "booking-not-found",
     "question": "What is the status of booking CW-9999?",
     "note": "no such booking: agent must say not found, not invent one",

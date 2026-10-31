@@ -66,6 +66,12 @@ def test_get_booking_case_insensitive(mock_bookings):
     assert result["id"] == "CW-1001"
 
 
+@pytest.mark.parametrize("short_id", ["1001", "cw1001", " CW-1001 "])
+def test_get_booking_short_id_forms(mock_bookings, short_id):
+    result = get_booking(short_id)
+    assert result["id"] == "CW-1001"
+
+
 def test_get_booking_empty_id(mock_bookings):
     with pytest.raises(BookingNotFound):
         get_booking("")
