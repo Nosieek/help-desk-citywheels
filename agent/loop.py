@@ -23,7 +23,7 @@ TOOLS = [
             "properties": {
                 "booking_id": {
                     "type": "string",
-                    "description": "The booking ID, e.g. CW-1001.",
+                    "description": "The booking ID, e.g. CW-1001. Short forms like '1001' are accepted.",
                 },
             },
             "required": ["booking_id"],
@@ -57,7 +57,7 @@ TOOLS = [
             "properties": {
                 "booking_id": {
                     "type": "string",
-                    "description": "The booking ID, e.g. CW-1001.",
+                    "description": "The booking ID, e.g. CW-1001. Short forms like '1001' are accepted.",
                 },
             },
             "required": ["booking_id"],

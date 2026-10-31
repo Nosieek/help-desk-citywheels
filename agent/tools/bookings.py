@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 DATA_PATH = Path(__file__).parent.parent.parent / "data" / "bookings.json"
@@ -22,10 +23,21 @@ def load_bookings() -> list:
         ) from e
 
 
+def normalize_booking_id(booking_id: str) -> str:
+    """Accept '1001', 'cw1001' or 'cw-1001' and normalize to 'CW-1001'."""
+    cleaned = booking_id.strip().upper()
+    if re.fullmatch(r"\d+", cleaned):
+        return f"CW-{cleaned}"
+    if re.fullmatch(r"CW\d+", cleaned):
+        return f"CW-{cleaned[2:]}"
+    return cleaned
+
+
 def get_booking(booking_id: str) -> dict:
-    """Find a booking by its ID (case-insensitive)."""
+    """Find a booking by its ID; short forms like '1001' are accepted."""
+    normalized = normalize_booking_id(booking_id)
     for booking in load_bookings():
-        if booking["id"].upper() == booking_id.upper():
+        if booking["id"].upper() == normalized:
             return booking
 
-    raise BookingNotFound(f"Booking {booking_id} not found")
+    raise BookingNotFound(f"Booking {normalized} not found")
