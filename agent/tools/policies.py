@@ -1,42 +1,58 @@
 import re
 from pathlib import Path
 
+from rank_bm25 import BM25Okapi
+
 POLICIES_DIR = Path(__file__).parent.parent.parent / "data" / "policies"
 POLICY_FILES = ["prices.md", "cancellations.md", "faq.md"]
 TOP_N = 3
 
-# words too common across all policy docs to be useful for ranking
-STOP_WORDS = {"hours", "days", "day", "per", "the", "and", "for", "are", "with", "from"}
-
-# Common word variations used in customer queries
-WORD_VARIANTS = {
-    "cancel": "cancellation",
-    "cancels": "cancellation",
-    "cancelled": "cancellation",
-    "cancelling": "cancellation",
-    "cancellations": "cancellation",
-    "bookings": "booking",
-    "reserve": "booking",
+# true synonyms only - plural/tense variants are handled by _stem
+SYNONYMS = {
+    "bicycle": "bike",
+    "bicycles": "bike",
+    "cycle": "bike",
+    "cycles": "bike",
     "reservation": "booking",
     "reservations": "booking",
-    "refunds": "refund",
-    "refunded": "refund",
-    "refunding": "refund",
+    "reserve": "booking",
+    "cost": "price",
+    "costs": "price",
+    "reschedule": "change",
+    "rescheduling": "change",
     "paid": "pay",
     "payment": "pay",
     "payments": "pay",
-    "bicycles": "bike",
-    "bicycle": "bike",
-    "bikes": "bike",
-    "cycles": "bike",
-    "opens": "open",
-    "opening": "open",
-    "opened": "open",
 }
 
+_SUFFIXES = ("ations", "ation", "ings", "ing", "ies", "ied", "ed", "s")
 
-def normalize_word(word: str) -> str:
-    return WORD_VARIANTS.get(word, word)
+
+def _stem(word: str) -> str:
+    """
+    Light suffix-stripping stemmer, applied to both documents and queries.
+
+    Maps word forms to a common stem: prices/price -> pric,
+    cancelled/cancellation/cancelling -> cancel, policies/policy -> policy.
+    """
+    for suffix in _SUFFIXES:
+        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+            if suffix in ("ies", "ied"):
+                word = word[: -len(suffix)] + "y"
+            else:
+                word = word[: -len(suffix)]
+            break
+    if word.endswith("e"):
+        word = word[:-1]
+    # collapse doubled final consonant: cancell -> cancel
+    if len(word) > 3 and word[-1] == word[-2]:
+        word = word[:-1]
+    return word
+
+
+def _tokenize(text: str) -> list[str]:
+    words = re.findall(r"\b\w+\b", text.lower())
+    return [_stem(SYNONYMS.get(word, word)) for word in words]
 
 
 def load_policy(filename: str) -> str:
@@ -70,53 +86,36 @@ def _split_into_sections(content: str) -> list[tuple[str, str]]:
     return sections
 
 
-def _score_section(heading: str, body: str, keywords: list[str]) -> int:
-    """Score a section based on keyword matches. Heading matches count double."""
-    words = {normalize_word(w) for w in re.findall(r"\b\w+\b", (heading + " " + body).lower())}
-    heading_words = {normalize_word(w) for w in re.findall(r"\b\w+\b", heading.lower())}
-    score = sum(1 for kw in keywords if kw in words)
-    score += sum(2 for kw in keywords if kw in heading_words)
-    return score
-
-
 def search_policies(query: str) -> str:
-    """Find the most relevant policy sections for a query"""
+    """Find the most relevant policy sections for a query using BM25."""
     if not query or not query.strip():
         return "No query provided."
 
-    keywords = [
-        normalize_word(word)
-        for word in re.findall(r"\b\w+\b", query.lower())
-        if len(word) > 2 and word not in STOP_WORDS
-    ]
-
-    scored = []
-
+    sections = []
     for filename in POLICY_FILES:
         content = load_policy(filename)
         if not content:
             continue
-
         for heading, body in _split_into_sections(content):
-            score = _score_section(heading, body, keywords)
-            if score > 0:
-                scored.append((score, filename, heading, body))
+            sections.append((filename, heading, body))
 
-    if not scored:
+    if not sections:
         return "No relevant policy information found."
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    best_score = scored[0][0]
-    top = [item for item in scored if item[0] >= 2 and item[0] >= best_score * 0.75][:TOP_N]
+    # heading tokens counted twice: a match in the heading matters more
+    corpus = [_tokenize(heading) * 2 + _tokenize(body) for _, heading, body in sections]
+    scores = BM25Okapi(corpus).get_scores(_tokenize(query))
+
+    ranked = sorted(range(len(sections)), key=lambda i: scores[i], reverse=True)
+    top = [sections[i] for i in ranked[:TOP_N] if scores[i] > 0]
 
     if not top:
-        top = scored[:1]
+        return "No relevant policy information found."
 
     parts = []
-    for score, filename, heading, body in top:
+    for filename, heading, body in top:
         parts.append(f"--- {filename} ---")
-        if heading:
-            parts.append(heading)
+        parts.append(heading)
         parts.append(body)
         parts.append("")
 

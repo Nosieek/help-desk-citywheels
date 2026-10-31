@@ -61,3 +61,15 @@ def test_search_cancellation_word_variants(query):
     result = search_policies(query)
     assert "cancellations.md" in result
     assert "Cancelling a booking" in result
+
+
+# realistic phrasings that the old keyword-dictionary search got wrong
+@pytest.mark.parametrize("query,expected_section", [
+    ("how much does a city bike cost per day", "City bike"),
+    ("do you accept credit cards", "How can I pay"),
+    ("reschedule my rental", "Changing a booking"),
+    ("storm refund", "Bad weather"),
+    ("are you open on sunday", "When are you open"),
+])
+def test_search_tricky_phrasings(query, expected_section):
+    assert expected_section in search_policies(query)
