@@ -93,11 +93,6 @@ def test_refund_method_voucher():
 
 # data validation
 
-def test_refund_error_booking():
-    result = calculate_refund({"error": "Booking not found", "booking_id": "CW-9999"}, now=NOW)
-    assert "error" in result
-
-
 def test_refund_missing_field():
     booking = make_booking()
     del booking["rental_price_eur"]

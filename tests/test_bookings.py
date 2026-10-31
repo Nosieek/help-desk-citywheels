@@ -1,6 +1,11 @@
 import pytest
 from unittest.mock import patch
-from agent.tools.bookings import get_booking
+from agent.tools.bookings import (
+    get_booking,
+    load_bookings,
+    BookingNotFound,
+    BookingDataUnavailable,
+)
 
 SAMPLE_BOOKINGS = [
     {"id": "CW-1001", "status": "confirmed", "bike_type": "city", "bikes": 1,
@@ -52,9 +57,8 @@ def test_get_booking_completed(mock_bookings):
 
 
 def test_get_booking_not_found(mock_bookings):
-    result = get_booking("CW-9999")
-    assert "error" in result
-    assert result["booking_id"] == "CW-9999"
+    with pytest.raises(BookingNotFound, match="CW-9999"):
+        get_booking("CW-9999")
 
 
 def test_get_booking_case_insensitive(mock_bookings):
@@ -63,17 +67,19 @@ def test_get_booking_case_insensitive(mock_bookings):
 
 
 def test_get_booking_empty_id(mock_bookings):
-    result = get_booking("")
-    assert "error" in result
+    with pytest.raises(BookingNotFound):
+        get_booking("")
 
 
-def test_get_booking_file_not_found():
-    with patch("agent.tools.bookings.load_bookings", side_effect=FileNotFoundError):
-        result = get_booking("CW-1001")
-    assert "error" in result
+def test_load_bookings_missing_file(tmp_path, monkeypatch):
+    monkeypatch.setattr("agent.tools.bookings.DATA_PATH", tmp_path / "missing.json")
+    with pytest.raises(BookingDataUnavailable):
+        load_bookings()
 
 
-def test_get_booking_corrupted_json():
-    with patch("agent.tools.bookings.load_bookings", return_value=[]):
-        result = get_booking("CW-1001")
-    assert "error" in result
+def test_load_bookings_corrupted_json(tmp_path, monkeypatch):
+    corrupted = tmp_path / "bookings.json"
+    corrupted.write_text("{not valid json", encoding="utf-8")
+    monkeypatch.setattr("agent.tools.bookings.DATA_PATH", corrupted)
+    with pytest.raises(BookingDataUnavailable):
+        load_bookings()

@@ -13,9 +13,6 @@ def calculate_refund(booking: dict, now: datetime = REFERENCE_NOW) -> dict:
     """
     booking_id = booking.get("id", "unknown")
 
-    if "error" in booking:
-        return {"error": booking["error"], "booking_id": booking_id}
-
     missing = REQUIRED_FIELDS - booking.keys()
     if missing:
         return {"error": f"Missing booking fields: {missing}", "booking_id": booking_id}
